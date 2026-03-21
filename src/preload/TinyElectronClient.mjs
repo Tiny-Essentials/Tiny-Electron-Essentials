@@ -1,6 +1,5 @@
 import { EventEmitter } from 'events';
 import { ipcRenderer, contextBridge } from 'electron';
-import { isJsonObject } from 'tiny-essentials';
 import { AppEvents, RootEvents } from '../global/Events.mjs';
 import { checkEventsList, deserializeError } from '../global/Utils.mjs';
 import TinyIpcRequestManager from './TinyIpcRequestManager.mjs';
@@ -1468,7 +1467,7 @@ class TinyElectronClient {
     getConfig.then(
       /** @param {WindowDataResult} data */ (data) => {
         if (
-          isJsonObject(data.bounds) &&
+          typeof data.bounds === 'object' &&
           typeof data.bounds.x === 'number' &&
           typeof data.bounds.x === 'number' &&
           typeof data.bounds.height === 'number' &&
@@ -1503,7 +1502,7 @@ class TinyElectronClient {
         entries.length > 0 && typeof entries[0].type === 'string' ? entries[0].type : null;
 
       // Fix values
-      if (isJsonObject(windowFirstConfig.bounds)) {
+      if (windowFirstConfig.bounds !== null && typeof windowFirstConfig.bounds === 'object') {
         if (
           this.getChangeCount('position') < 1 &&
           typeof windowFirstConfig.bounds.x === 'number' &&

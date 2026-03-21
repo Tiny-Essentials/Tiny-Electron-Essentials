@@ -1,5 +1,4 @@
 import { readFileSync } from 'fs';
-import { isJsonObject } from 'tiny-essentials';
 
 /**
  * @typedef {{ width: number; height: number; x?: number; y?: number; }} Bounds
@@ -42,7 +41,7 @@ class TinyWindowFile {
   loadFile(initFile, { bounds = { width: 1200, height: 700 } } = {}) {
     if (typeof initFile !== 'string') throw new TypeError('Expected "initFile" to be a string.');
 
-    if (!isJsonObject(bounds)) throw new TypeError('Expected "bounds" to be an object.');
+    if (typeof bounds !== 'object') throw new TypeError('Expected "bounds" to be an object.');
     if (typeof bounds.width !== 'number' || typeof bounds.height !== 'number')
       throw new TypeError('Expected "bounds" with numeric width and height.');
     if (
@@ -55,12 +54,12 @@ class TinyWindowFile {
     let data = {};
     try {
       const raw = JSON.parse(readFileSync(initFile, 'utf8'));
-      if (isJsonObject(raw)) data = raw;
+      if (typeof raw === 'object') data = raw;
     } catch {
       data = {};
     }
 
-    const rawBounds = isJsonObject(data.bounds) ? data.bounds : bounds;
+    const rawBounds = typeof data.bounds === 'object' ? data.bounds : bounds;
     const finalBounds = {
       width: typeof rawBounds.width === 'number' ? rawBounds.width : bounds.width,
       height: typeof rawBounds.height === 'number' ? rawBounds.height : bounds.height,

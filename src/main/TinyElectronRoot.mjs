@@ -5,7 +5,6 @@ import { EventEmitter } from 'events';
 import { app, BrowserWindow, ipcMain, session, powerMonitor, Tray } from 'electron';
 import { release, platform } from 'node:os';
 
-import { isJsonObject } from 'tiny-essentials';
 import { AppEvents, RootEvents } from '../global/Events.mjs';
 import { checkEventsList, deepClone, serializeError } from '../global/Utils.mjs';
 import TinyWinInstance from './TinyWinInstance.mjs';
@@ -762,7 +761,8 @@ class TinyElectronRoot {
     isMain = false,
   } = {}) {
     // Validate input
-    if (!isJsonObject(appDetails)) throw new TypeError('Expected "appDetails" to be a object.');
+    if (typeof appDetails !== 'object')
+      throw new TypeError('Expected "appDetails" to be a object.');
     if (typeof isMain !== 'boolean') throw new TypeError('Expected "isMain" to be a boolean.');
     if (typeof needsMaximize !== 'boolean')
       throw new TypeError('Expected "needsMaximize" to be a boolean.');
@@ -778,7 +778,7 @@ class TinyElectronRoot {
     let cfg;
     if (typeof fileId === 'string' && !this.#winFile.hasId(fileId)) this.#winFile.loadFile(fileId);
     if (typeof fileId === 'string') {
-      if (!isJsonObject(config))
+      if (typeof config !== 'object')
         throw new Error('[Window Creation Error] Expected "config" to be an object.');
 
       cfg = deepClone(config);
@@ -1666,7 +1666,7 @@ class TinyElectronRoot {
     }
 
     // Validate `ops`
-    if (ops !== undefined && !isJsonObject(ops))
+    if (ops !== undefined && typeof ops !== 'object')
       throw new TypeError('Expected "ops" to be an object.');
 
     // Load by URL or file

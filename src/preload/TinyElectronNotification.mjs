@@ -1,6 +1,5 @@
 import { ipcRenderer, contextBridge } from 'electron';
 import { EventEmitter } from 'events';
-import { isJsonObject } from 'tiny-essentials';
 import TinyIpcRequestManager from './TinyIpcRequestManager.mjs';
 import { NotificationEvents } from '../global/Events.mjs';
 import { checkEventsList } from '../global/Utils.mjs';
@@ -77,7 +76,7 @@ class TinyElectronNotification {
    */
   create(arg) {
     return new Promise((resolve, reject) => {
-      if (!isJsonObject(arg)) throw new TypeError('Argument "arg" must be a non-null object.');
+      if (typeof arg !== 'object') throw new TypeError('Argument "arg" must be a non-null object.');
       if (!('tag' in arg)) throw new Error('Notification "tag" is required.');
       if (typeof arg.tag !== 'string' || arg.tag.trim() === '')
         throw new Error('Notification "tag" must be a non-empty string.');

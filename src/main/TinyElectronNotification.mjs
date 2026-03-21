@@ -3,7 +3,6 @@ import { readdir, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { BrowserWindow, Notification } from 'electron';
-import { isJsonObject } from 'tiny-essentials';
 
 import TinyIpcResponder from './TinyIpcResponder.mjs';
 import { NotificationEvents } from '../global/Events.mjs';
@@ -170,7 +169,7 @@ class TinyElectronNotification {
       /** @param {NotificationConstructorOptions} data */
       (event, data, res) => {
         const win = this.#getWin(event);
-        if (win && isJsonObject(data) && typeof data.tag === 'string') {
+        if (win && typeof data === 'object' && typeof data.tag === 'string') {
           /** @type {Electron.NotificationConstructorOptions} */
           const newData = {
             ...Object.fromEntries(Object.entries(data).filter(([key]) => !['tag'].includes(key))),

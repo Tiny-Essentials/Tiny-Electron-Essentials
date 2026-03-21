@@ -1,4 +1,3 @@
-import { isJsonObject } from 'tiny-essentials';
 import {
   getDefaultWindowFrameRoot,
   getDefaultWindowFrameStyle,
@@ -195,7 +194,7 @@ class TinyWindowFrameManager {
     if (typeof windowRoot !== 'string' || !windowRoot.trim())
       throw new Error('windowRoot must be a non-empty string.');
 
-    if (!isJsonObject(icons)) throw new Error('icons must be a object.');
+    if (typeof icons !== 'object') throw new Error('icons must be a object.');
     const requiredIcons = ['minimize', 'maximize', 'unmaximize', 'close'];
     requiredIcons.forEach((key) => {
       // @ts-ignore
@@ -204,7 +203,7 @@ class TinyWindowFrameManager {
       }
     });
 
-    if (!isJsonObject(classes)) throw new Error('classes must be a object.');
+    if (typeof classes !== 'object') throw new Error('classes must be a object.');
     const requiredClasses = ['blur', 'focus', 'fullscreen', 'maximized'];
     requiredClasses.forEach((key) => {
       // @ts-ignore

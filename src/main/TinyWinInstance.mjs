@@ -1,6 +1,5 @@
 import { BrowserWindow, shell } from 'electron';
 import { EventEmitter } from 'events';
-import { isJsonObject } from 'tiny-essentials';
 import { AppEvents, RootEvents } from '../global/Events.mjs';
 import { checkEventsList } from '../global/Utils.mjs';
 
@@ -653,7 +652,7 @@ class TinyWinInstance {
     if (typeof setProxy !== 'function')
       throw new Error(`[Window Creation Error] 'setProxy' must be a setProxy.`);
 
-    if (!isJsonObject(config))
+    if (typeof config !== 'object')
       throw new Error('[Window Creation Error] Expected "config" to be an object.');
 
     if (typeof isMaximized !== 'boolean')

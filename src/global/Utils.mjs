@@ -1,5 +1,3 @@
-import { isJsonObject } from 'tiny-essentials';
-
 /**
  * An extended error object that may contain additional metadata.
  *
@@ -118,7 +116,7 @@ export function deepClone(obj) {
  * @throws {Error} If any value in `eventNames` (for keys that exist in `list`) is not a string.
  */
 export const checkEventsList = (eventNames, list) => {
-  if (!isJsonObject(eventNames)) throw new TypeError('Expected "eventNames" to be an object.');
+  if (typeof eventNames !== 'object') throw new TypeError('Expected "eventNames" to be an object.');
   for (const key in list) {
     // @ts-ignore
     if (typeof eventNames[key] !== 'undefined' && typeof eventNames[key] !== 'string')
