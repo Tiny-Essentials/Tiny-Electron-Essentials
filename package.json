@@ -1,7 +1,7 @@
 {
   "name": "tiny-electron-essentials",
   "description": "A lightweight and modular utility library for Electron apps, offering simplified window management, tray support, IPC channels, and custom frameless window styling.",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "scripts": {
     "test": "electronmon ./test/main.mjs",
     "fix:prettier": "npm run fix:prettier:src && npm run fix:prettier:test && npm run fix:prettier:rollup.config",
@@ -29,13 +29,73 @@
       "require": "./preload/index.cjs",
       "import": "./preload/index.mjs"
     },
+    "./preload/LoadingHtml": {
+      "require": "./preload/LoadingHtml.cjs",
+      "import": "./preload/LoadingHtml.mjs"
+    },
+    "./preload/TinyDb": {
+      "require": "./preload/TinyDb.cjs",
+      "import": "./preload/TinyDb.mjs"
+    },
+    "./preload/TinyElectronClient": {
+      "require": "./preload/TinyElectronClient.cjs",
+      "import": "./preload/TinyElectronClient.mjs"
+    },
+    "./preload/TinyElectronNotification": {
+      "require": "./preload/TinyElectronNotification.cjs",
+      "import": "./preload/TinyElectronNotification.mjs"
+    },
+    "./preload/TinyIpcRequestManager": {
+      "require": "./preload/TinyIpcRequestManager.cjs",
+      "import": "./preload/TinyIpcRequestManager.mjs"
+    },
+    "./preload/TinyWindowFrameManager": {
+      "require": "./preload/TinyWindowFrameManager.cjs",
+      "import": "./preload/TinyWindowFrameManager.mjs"
+    },
     "./main": {
       "require": "./main/index.cjs",
       "import": "./main/index.mjs"
     },
+    "./main/TinyDb": {
+      "require": "./main/TinyDb.cjs",
+      "import": "./main/TinyDb.mjs"
+    },
+    "./main/TinyElectronNotification": {
+      "require": "./main/TinyElectronNotification.cjs",
+      "import": "./main/TinyElectronNotification.mjs"
+    },
+    "./main/TinyElectronRoot": {
+      "require": "./main/TinyElectronRoot.cjs",
+      "import": "./main/TinyElectronRoot.mjs"
+    },
+    "./main/TinyIpcResponder": {
+      "require": "./main/TinyIpcResponder.cjs",
+      "import": "./main/TinyIpcResponder.mjs"
+    },
+    "./main/TinyWindowFile": {
+      "require": "./main/TinyWindowFile.cjs",
+      "import": "./main/TinyWindowFile.mjs"
+    },
+    "./main/TinyWinInstance": {
+      "require": "./main/TinyWinInstance.cjs",
+      "import": "./main/TinyWinInstance.mjs"
+    },
     "./global": {
       "require": "./global/index.cjs",
       "import": "./global/index.mjs"
+    },
+    "./global/CssFile": {
+      "require": "./global/CssFile.cjs",
+      "import": "./global/CssFile.mjs"
+    },
+    "./global/Events": {
+      "require": "./global/Events.cjs",
+      "import": "./global/Events.mjs"
+    },
+    "./global/Utils": {
+      "require": "./global/Utils.cjs",
+      "import": "./global/Utils.mjs"
     }
   },
   "repository": {
