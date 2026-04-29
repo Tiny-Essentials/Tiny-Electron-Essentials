@@ -94,21 +94,13 @@ export const getDefaultWindowFrameRoot = () => {
  * dynamic class selectors for component names.
  *
  * @param {Object} [settings={}] - Optional settings to customize the CSS output.
- * @param {(className?: string, extra?: string, extra2?: string) => string} [settings.getElementName]
- * Function that returns a valid CSS selector string based on provided class names or modifiers.
- *
- * @param {string} [settings.fullscreenClass]
- * Class name applied to `<body>` to indicate fullscreen mode, which affects frame visibility.
- *
- * @param {string} [settings.blurClass]
- * Class name applied to `<body>` to indicate blur mode, changing color schemes for certain elements.
- *
- * @param {string} [settings.maximizedClass]
- * Class name applied to `<body>` to indicate maximized mode, changing color schemes for certain elements.
+ * @param {(className?: string, extra?: string, extra2?: string) => string} [settings.getElementName] - Function that returns a valid CSS selector string.
+ * @param {string} [settings.fullscreenClass] - Class name applied to body to indicate fullscreen mode.
+ * @param {string} [settings.blurClass] - Class name applied to body to indicate blur mode.
+ * @param {string} [settings.maximizedClass] - Class name applied to body to indicate maximized mode.
  *
  * @returns {string} CSS string for the full custom window frame styling.
- *
- * @throws {Error} If any of the settings are invalid, such as missing `getElementName` or invalid class names.
+ * @throws {Error} If any of the required settings are invalid.
  */
 export const getDefaultWindowFrameStyle = ({
   getElementName,
@@ -124,12 +116,18 @@ export const getDefaultWindowFrameStyle = ({
     throw new Error('Invalid argument: "fullscreenClass" must be a string.');
   if (typeof blurClass !== 'string')
     throw new Error('Invalid argument: "blurClass" must be a string.');
+  if (typeof maximizedClass !== 'string')
+    throw new Error('Invalid argument: "maximizedClass" must be a string.');
 
   return `
       /* Base */
       body {
-        height: 100%;
-        width: 100%;
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+        box-sizing: border-box;
       }
 
       ${getElementName()} {
@@ -141,10 +139,18 @@ export const getDefaultWindowFrameStyle = ({
       }
 
       /* Border */
+      ${getElementName('.custom-window-frame')},
+      ${getElementName('.window-content')} {
+        box-sizing: border-box;
+      }
+
       ${getElementName('.custom-window-frame')} {
         border-top: var(--frame-border-size) solid var(--frame-border-color);
         border-left: var(--frame-border-size) solid var(--frame-border-color);
         border-right: var(--frame-border-size) solid var(--frame-border-color);
+        pointer-events: none;
+        user-select: none;
+        color: var(--frame-font-color);
       }
 
       ${getElementName('.custom-window-frame')},
@@ -167,22 +173,13 @@ export const getDefaultWindowFrameStyle = ({
         border-right: var(--frame-border-size) solid var(--frame-border-color);
         border-bottom-left-radius: var(--frame-border-radius);
         border-bottom-right-radius: var(--frame-border-radius);
-      }
-
-      /* Frame */
-      ${getElementName('.custom-window-frame')} {
-        pointer-events: none;
-        user-select: none;
-        color: var(--frame-font-color);
-      }
-
-      ${getElementName('.window-content')} {
         flex: 1;
         overflow: auto;
         pointer-events: all;
         background: var(--frame-root-background);
       }
 
+      /* Frame */
       ${getElementName('.frame-top')} {
         position: relative;
         width: 100%;
@@ -204,8 +201,7 @@ export const getDefaultWindowFrameStyle = ({
       ${getElementName('.frame-top-left')},
       ${getElementName('.frame-top-right')} {
         flex: 0 0 auto;
-        padding-top: 0px;
-        padding-bottom: 0px;
+        padding: 0;
       }
 
       ${getElementName('.frame-top-left')} {
@@ -220,10 +216,6 @@ export const getDefaultWindowFrameStyle = ({
         height: 100%;
         position: absolute;
         right: 0;
-      }
-
-      ${getElementName('.frame-top')} {
-        position: relative;
       }
 
       ${getElementName('.frame-top-center')} {
@@ -261,21 +253,21 @@ export const getDefaultWindowFrameStyle = ({
       /* Buttons style base */
       ${getElementName('.frame-menu > button')},
       ${getElementName('.frame-buttons > button')},
-      ${getElementName('.frame-menu > button')}:focus,
-      ${getElementName('.frame-menu > button')}:active,
-      ${getElementName('.frame-menu > button')}:hover,
-      ${getElementName('.frame-buttons > button')}:focus,
-      ${getElementName('.frame-buttons > button')}:active,
-      ${getElementName('.frame-buttons > button')}:hover,
-      ${getElementName('.frame-menu > button')}:disabled,
-      ${getElementName('.frame-buttons > button')}:disabled {
+      ${getElementName('.frame-menu > button:focus')},
+      ${getElementName('.frame-menu > button:active')},
+      ${getElementName('.frame-menu > button:hover')},
+      ${getElementName('.frame-buttons > button:focus')},
+      ${getElementName('.frame-buttons > button:active')},
+      ${getElementName('.frame-buttons > button:hover')},
+      ${getElementName('.frame-menu > button:disabled')},
+      ${getElementName('.frame-buttons > button:disabled')} {
         outline: none;
         box-shadow: none;
         text-shadow: none;
       }
 
-      ${getElementName('.frame-menu > button')}:disabled,
-      ${getElementName('.frame-buttons > button')}:disabled {
+      ${getElementName('.frame-menu > button:disabled')},
+      ${getElementName('.frame-buttons > button:disabled')} {
         opacity: 0.5;
       }
 
@@ -406,20 +398,16 @@ export const getDefaultWindowFrameStyle = ({
       }
 
       ${getElementName('.custom-window-frame', '', `body.${maximizedClass}`)} {
-        border-top-left-radius: 0px !important;
-        border-top-right-radius: 0px !important;
-        border-top: 0px solid transparent !important;
-        border-left: 0px solid transparent !important;
-        border-right: 0px solid transparent !important;
+        border-top-left-radius: 0 !important;
+        border-top-right-radius: 0 !important;
+        border: none !important;
       }
 
       ${getElementName('.window-content', '', `body.${fullscreenClass}`)},
       ${getElementName('.window-content', '', `body.${maximizedClass}`)} {
-        border-bottom: 0px solid transparent !important;
-        border-left: 0px solid transparent !important;
-        border-right: 0px solid transparent !important;
-        border-bottom-left-radius: 0px !important;
-        border-bottom-right-radius: 0px !important;
+        border: none !important;
+        border-bottom-left-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
       }
 
       /* Close Button */
