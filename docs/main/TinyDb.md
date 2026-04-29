@@ -31,12 +31,11 @@ It provides a bridge between the **main process** and the **renderer process** f
 ## 🏗️ Constructor
 
 ```js
-new TinyDb(ipcResponder, id)
+new TinyDb(id)
 ```
 
 | Param          | Type               | Description                                       |
 | -------------- | ------------------ | ------------------------------------------------- |
-| `ipcResponder` | `TinyIpcResponder` | The IPC responder instance for handling requests. |
 | `id`           | `string`           | Unique identifier for IPC event namespacing.      |
 
 ---
@@ -132,13 +131,10 @@ All events are dynamically namespaced with the provided `id`.
 
 ```js
 import TinyDb from './TinyDb.mjs';
-import TinyIpcResponder from './TinyIpcResponder.mjs';
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 
-const ipcResponder = new TinyIpcResponder('appDb');
-
-const db = new TinyDb(ipcResponder, 'appDb');
+const db = new TinyDb('appDb');
 
 (async () => {
   const sqlDb = await open({

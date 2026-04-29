@@ -36,6 +36,7 @@ import { deserializeError } from '../global/Utils.mjs';
  * Commonly used when the renderer process needs to request data or actions
  * from the main process.
  *
+ * @deprecated - Replaced by the native electronJS API.
  * @class
  */
 class TinyIpcRequestManager {

@@ -17,7 +17,6 @@ Choose which topic you want to learn more about! Each document contains examples
 | [**TinyDb**](./TinyDb.md)                       | 🗂️ A simple key-value JSON-based database for lightweight storage on the preload side. |
 | [**TinyElectronClient**](./TinyElectronClient.md) | 🚀 Main API to control the Electron window, handle IPC, window status, and events between renderer and main. |
 | [**TinyElectronNotification**](./TinyElectronNotification.md) | 🔔 Provides cross-platform system notifications with additional options and IPC sync. |
-| [**TinyIpcRequestManager**](./TinyIpcRequestManager.md) | 🔌 Handles asynchronous IPC request-response communication between renderer and main process. |
 | [**TinyWindowFrameManager**](./TinyWindowFrameManager.md) | 🪟 Full management of custom window frames, borders, and draggable regions for frameless windows. |
 
 ---

@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const mime = require('mime-types');
 
-const { contextBridge } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 const {
   TinyElectronClient,
@@ -29,15 +29,12 @@ setTimeout(async () => {
   if (idle > 0) console.log(await client.systemIdleState(idle));
 }, 1000);
 
-// Get manager
-const manager = client.getIpcRequest();
-
 // Tiny Db
-const tinyDb = new TinyDb(manager, 'db');
+const tinyDb = new TinyDb('db');
 tinyDb.exposeInMainWorld('tinyDb');
 
 // Notifications
-const notifications = new TinyElectronNotification({ ipcRequest: manager });
+const notifications = new TinyElectronNotification();
 notifications.installWinScript();
 
 // Test
@@ -55,7 +52,7 @@ const tinyNotiActions = (tinyNoti) => {
 };
 
 contextBridge.exposeInMainWorld('api', {
-  getUser: () => manager.send('get-user-data', { userId: 123 }, { timeout: 3000 }),
+  getUser: () => ipcRenderer.invoke('get-user-data', { userId: 123 }),
   notiTest: async () => {
     const tinyNoti = await notifications.create({
       icon: path.join(__dirname, './icons/favicon.png'),

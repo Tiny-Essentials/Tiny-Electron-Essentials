@@ -29,6 +29,7 @@ import { serializeError } from '../global/Utils.mjs';
  * Typically used to expose APIs from the main process to renderer processes
  * with clear request/response patterns.
  *
+ * @deprecated - Replaced by the native electronJS API.
  * @class
  */
 class TinyIpcResponder {

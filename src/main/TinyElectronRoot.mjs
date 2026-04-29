@@ -9,7 +9,6 @@ import { AppEvents, RootEvents } from '../global/Events.mjs';
 import { checkEventsList, deepClone, serializeError } from '../global/Utils.mjs';
 import TinyWinInstance from './TinyWinInstance.mjs';
 import TinyWindowFile from './TinyWindowFile.mjs';
-import TinyIpcResponder from './TinyIpcResponder.mjs';
 
 // Remove electron security warnings
 // This warning only shows in development mode
@@ -17,7 +16,6 @@ import TinyIpcResponder from './TinyIpcResponder.mjs';
 // process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true'
 
 /** @typedef {import('./TinyWindowFile.mjs').InitConfig} WinInitFile */
-/** @typedef {import('./TinyIpcResponder.mjs').IPCRespondCallback} IPCRespondCallback */
 
 /**
  * @typedef {Object} NewBrowserOptions - Configuration for the new BrowserWindow.
@@ -37,7 +35,7 @@ import TinyIpcResponder from './TinyIpcResponder.mjs';
  *
  * This class acts as the central manager for window instances,
  * IPC handlers, and global application state. It coordinates
- * the lifecycle of windows, IPC responders, and shared resources.
+ * the lifecycle of windows and shared resources natively.
  *
  * Typically used in the main process to bootstrap and manage the
  * core behavior of the entire Electron application.
@@ -303,9 +301,6 @@ class TinyElectronRoot {
   /** @type {((data: any) => Record<string, any>) | null} */
   #requestCache = null;
 
-  /** @type {TinyIpcResponder} */
-  #ipcResponder;
-
   /** @type {Record<string, string>} */
   #appDataStarted = {};
 
@@ -355,7 +350,7 @@ class TinyElectronRoot {
   }
 
   /**
-   * @param {Electron.IpcMainEvent} event
+   * @param {Electron.IpcMainEvent | Electron.IpcMainInvokeEvent} event
    * @returns {BrowserWindow|null}
    */
   #getWin(event) {
@@ -373,8 +368,12 @@ class TinyElectronRoot {
   #execFirstTime() {
     if (!this.#firstTime) return;
     this.#firstTime = false;
+
     /**
-     * @param {Electron.IpcMainEvent} event
+     * Resolves the TinyWinInstance associated with an IPC event.
+     *
+     * @function getWinInstance
+     * @param {Electron.IpcMainEvent | Electron.IpcMainInvokeEvent} event - The triggered IPC event.
      * @returns {TinyWinInstance|null}
      */
     const getWinInstance = (event) => {
@@ -393,11 +392,44 @@ class TinyElectronRoot {
       return null;
     };
 
-    this.#ipcResponder.on(this.#AppEvents.GetWindowData, (event, value, res) => {
+    /**
+     * Helper to process native BrowserWindow IPC actions natively.
+     *
+     * @function handleWinAction
+     * @param {string} eventName - The IPC channel name to listen.
+     * @param {(win: BrowserWindow, event: Electron.IpcMainInvokeEvent, value: any) => any} action - Callback to execute.
+     * @returns {void}
+     */
+    const handleWinAction = (eventName, action) => {
+      ipcMain.handle(eventName, (event, value) => {
+        const win = this.#getWin(event);
+        if (win) return action(win, event, value);
+        return null;
+      });
+    };
+
+    /**
+     * Helper to process native TinyWinInstance IPC actions natively.
+     *
+     * @function handleInstanceAction
+     * @param {string} eventName - The IPC channel name to listen.
+     * @param {(instance: TinyWinInstance, event: Electron.IpcMainInvokeEvent, value: any) => any} action - Callback to execute.
+     * @returns {void}
+     */
+    const handleInstanceAction = (eventName, action) => {
+      ipcMain.handle(eventName, (event, value) => {
+        const instance = getWinInstance(event);
+        if (instance) return action(instance, event, value);
+        return null;
+      });
+    };
+
+    // System and Data requests
+    ipcMain.handle(this.#AppEvents.GetWindowData, (event) => {
       const win = this.#getWin(event);
       const instance = getWinInstance(event);
-      if (win && instance)
-        res({
+      if (win && instance) {
+        return {
           bounds: win.getBounds(),
           isFullScreenable: instance.isFullScreenable(),
           isMaximizable: instance.isMaximizable(),
@@ -406,240 +438,133 @@ class TinyElectronRoot {
           isFullScreen: win.isFullScreen(),
           isFocused: win.isFocused(),
           isMaximized: win.isMaximized(),
-        });
-      res(null);
+        };
+      }
+      return null;
     });
 
-    this.#ipcResponder.on(this.#AppEvents.OpenDevTools, (event, value, res) => {
-      const win = this.#getWin(event);
-      if (win) this.openDevTools(win, value);
-      res(null);
+    handleWinAction(this.#AppEvents.SystemIdleTime, () => powerMonitor.getSystemIdleTime());
+    handleWinAction(this.#AppEvents.SystemIdleState, (_win, _event, value) =>
+      powerMonitor.getSystemIdleState(value),
+    );
+
+    // Core interactions
+    handleWinAction(this.#AppEvents.OpenDevTools, (win, _event, value) =>
+      this.openDevTools(win, value),
+    );
+    handleWinAction(this.#AppEvents.SetTitle, (win, _event, title) => win.setTitle(title));
+
+    // Delayed Window Focus/Blur Actions
+    handleWinAction(this.#AppEvents.FocusWindow, (win) => {
+      setTimeout(() => {
+        win.focus();
+      }, 200);
+    });
+    handleWinAction(this.#AppEvents.BlurWindow, (win) => {
+      setTimeout(() => {
+        win.blur();
+      }, 200);
+    });
+    handleWinAction(this.#AppEvents.ShowWindow, (win) => {
+      setTimeout(() => {
+        win.show();
+      }, 200);
+    });
+    handleWinAction(this.#AppEvents.ForceFocusWindow, (win) => {
+      setTimeout(() => {
+        win.show();
+        win.focus();
+      }, 200);
     });
 
-    this.#ipcResponder.on(this.#AppEvents.SetTitle, (event, title, res) => {
-      const win = this.#getWin(event);
-      if (win) win.setTitle(title);
-      res(null);
-    });
+    handleInstanceAction(this.#AppEvents.ToggleVisible, (instance, _event, isVisible) =>
+      instance.toggleVisible(isVisible),
+    );
 
-    this.#ipcResponder.on(this.#AppEvents.FocusWindow, (event, _value, res) => {
-      const win = this.#getWin(event);
-      if (win)
-        setTimeout(() => {
-          const win = this.#getWin(event);
-          if (win) win.focus();
-          res(null);
-        }, 200);
-      else res(null);
-    });
-
-    this.#ipcResponder.on(this.#AppEvents.BlurWindow, (event, _value, res) => {
-      const win = this.#getWin(event);
-      if (win)
-        setTimeout(() => {
-          const win = this.#getWin(event);
-          if (win) win.blur();
-          res(null);
-        }, 200);
-      else res(null);
-    });
-
-    this.#ipcResponder.on(this.#AppEvents.ShowWindow, (event, _value, res) => {
-      const win = this.#getWin(event);
-      if (win)
-        setTimeout(() => {
-          const win = this.#getWin(event);
-          if (win) win.show();
-          res(null);
-        }, 200);
-      else res(null);
-    });
-
-    this.#ipcResponder.on(this.#AppEvents.ForceFocusWindow, (event, _value, res) => {
-      const win = this.#getWin(event);
-      if (win)
-        setTimeout(() => {
-          const win = this.#getWin(event);
-          if (win) {
-            win.show();
-            win.focus();
-          }
-          res(null);
-        }, 200);
-      else res(null);
-    });
-
-    this.#ipcResponder.on(this.#AppEvents.SystemIdleTime, (event, _value, res) => {
-      const win = this.#getWin(event);
-      if (win) {
-        const idleSecs = powerMonitor.getSystemIdleTime();
-        res(idleSecs);
-      } else res(null);
-    });
-
-    this.#ipcResponder.on(this.#AppEvents.SystemIdleState, (event, value, res) => {
-      const win = this.#getWin(event);
-      if (win) {
-        const idleState = powerMonitor.getSystemIdleState(value);
-        res(idleState);
-      } else res(null);
-    });
-
-    this.#ipcResponder.on(this.#AppEvents.ToggleVisible, (event, isVisible, res) => {
-      const win = getWinInstance(event);
-      if (win) res(win.toggleVisible(isVisible));
-      else res(null);
-    });
-
+    // Lifecycle events
     ipcMain.on(this.#AppEvents.AppQuit, () => this.quit());
-
     ipcMain.on(this.#AppEvents.DOMContentLoaded, (event, data) => {
       const win = getWinInstance(event);
       if (win) this.#emit(RootEvents.DOMContentLoaded, win, data);
     });
 
-    // Win configs
-    this.#ipcResponder.on(this.#AppEvents.SetWindowIsMaximizable, (event, data, res) => {
-      const win = getWinInstance(event);
-      if (win) res(win.setMaximizable(data));
-      else res(null);
-    });
+    // Window Configuration limits
+    handleInstanceAction(this.#AppEvents.SetWindowIsMaximizable, (instance, _event, data) =>
+      instance.setMaximizable(data),
+    );
+    handleInstanceAction(this.#AppEvents.SetWindowIsClosable, (instance, _event, data) =>
+      instance.setClosable(data),
+    );
+    handleInstanceAction(this.#AppEvents.SetWindowIsFocusable, (instance, _event, data) =>
+      instance.setFocusable(data),
+    );
+    handleInstanceAction(this.#AppEvents.SetWindowIsFullScreenable, (instance, _event, data) =>
+      instance.setFullScreenable(data),
+    );
 
-    this.#ipcResponder.on(this.#AppEvents.SetWindowIsClosable, (event, data, res) => {
-      const win = getWinInstance(event);
-      if (win) res(win.setClosable(data));
-      else res(null);
-    });
+    // Proxy setup
+    handleWinAction(this.#AppEvents.SetProxy, (win, _event, config) => this.setProxy(win, config));
 
-    this.#ipcResponder.on(this.#AppEvents.SetWindowIsFocusable, (event, data, res) => {
-      const win = getWinInstance(event);
-      if (win) res(win.setFocusable(data));
-      else res(null);
-    });
+    // Window Actions
+    handleWinAction(this.#AppEvents.WindowMaximize, (win) => win.maximize());
+    handleWinAction(this.#AppEvents.WindowUnmaximize, (win) => win.unmaximize());
+    handleWinAction(this.#AppEvents.WindowMinimize, (win) => win.minimize());
 
-    this.#ipcResponder.on(this.#AppEvents.SetWindowIsFullScreenable, (event, data, res) => {
-      const win = getWinInstance(event);
-      if (win) res(win.setFullScreenable(data));
-      else res(null);
-    });
+    handleInstanceAction(this.#AppEvents.WindowHide, (instance) => instance.toggleVisible(false));
+    handleInstanceAction(this.#AppEvents.WindowClose, (instance) => instance.getWin().close());
+    handleInstanceAction(this.#AppEvents.WindowDestroy, (instance) => instance.destroy());
+    handleInstanceAction(this.#AppEvents.WindowShow, (instance) => instance.toggleVisible(true));
 
-    // Set proxy
-    this.#ipcResponder.on(this.#AppEvents.SetProxy, (event, config, res) => {
-      const win = this.#getWin(event);
-      if (win && win.webContents) {
-        this.setProxy(win, config, res);
-      } else res(null, new Error('Invalid window type'));
-    });
-
-    // Window status
-    this.#ipcResponder.on(this.#AppEvents.WindowMaximize, (event, _value, res) => {
-      const win = this.#getWin(event);
-      if (win) win.maximize();
-      res(null);
-    });
-
-    this.#ipcResponder.on(this.#AppEvents.WindowUnmaximize, (event, _value, res) => {
-      const win = this.#getWin(event);
-      if (win) win.unmaximize();
-      res(null);
-    });
-
-    this.#ipcResponder.on(this.#AppEvents.WindowMinimize, (event, _value, res) => {
-      const win = this.#getWin(event);
-      if (win) win.minimize();
-      res(null);
-    });
-
-    this.#ipcResponder.on(this.#AppEvents.WindowHide, (event, _value, res) => {
-      const win = getWinInstance(event);
-      if (win) res(win.toggleVisible(false));
-      else res(null);
-    });
-
-    this.#ipcResponder.on(this.#AppEvents.WindowClose, (event, _value, res) => {
-      const win = getWinInstance(event);
-      if (win) win.getWin().close();
-      else res(null);
-    });
-
-    this.#ipcResponder.on(this.#AppEvents.WindowDestroy, (event, _value, res) => {
-      const win = getWinInstance(event);
-      if (win) win.destroy();
-      else res(null);
-    });
-
-    this.#ipcResponder.on(this.#AppEvents.WindowShow, (event, _value, res) => {
-      const win = getWinInstance(event);
-      if (win) res(win.toggleVisible(true));
-      else res(null);
-    });
-
-    // Icons
-    this.#ipcResponder.on(this.#AppEvents.ChangeAppIcon, (event, img, res) => {
+    // Visuals & Icons
+    handleWinAction(this.#AppEvents.ChangeAppIcon, (win, _event, img) => {
       if (typeof img !== 'string' || img.length === 0)
         throw new TypeError(`Invalid "img" argument: expected non-empty string, got "${img}"`);
-      const win = this.#getWin(event);
-      if (win) win.setIcon(this.resolveSystemIconPath(img));
-      res(null);
+      win.setIcon(this.resolveSystemIconPath(img));
     });
 
-    this.#ipcResponder.on(this.#AppEvents.ChangeTrayIcon, (event, { img, key } = {}, res) => {
+    ipcMain.handle(this.#AppEvents.ChangeTrayIcon, (event, { img, key } = {}) => {
       if (typeof img !== 'string' || img.length === 0)
         throw new TypeError(`Invalid "img" argument: expected non-empty string, got "${img}"`);
       if (typeof key !== 'string' || key.length === 0)
         throw new TypeError(`Invalid "key" argument: expected non-empty string, got "${key}"`);
       this.getTray(key).setImage(this.resolveSystemIconPath(img));
-      res(null);
+      return null;
     });
 
     this.#emit(RootEvents.CreateFirstWindow);
   }
 
   /**
-   * Applies a network proxy configuration to a given BrowserWindow instance.
+   * Applies a network proxy configuration to a given BrowserWindow instance natively.
    *
    * This method sets the proxy settings for the session associated with the window's webContents.
-   * Upon completion, it emits events back to the renderer process to indicate success or failure.
-   *
-   * If a callback (`res`) is provided, it will be invoked with `(null)` on success,
-   * or with `(null, Error)` on failure.
+   * It is implemented asynchronously and throws if it encounters an error.
    *
    * @param {BrowserWindow} win - The target BrowserWindow whose session will receive the proxy configuration.
    * Must be a valid and active window instance.
-   *
    * @param {Electron.ProxyConfig} config - The proxy configuration object following Electron's ProxyConfig structure.
    * Example: `{ proxyRules: 'http=myproxy.com:8080;https=myproxy.com:8080', proxyBypassRules: 'localhost' }`
    *
-   * @param {IPCRespondCallback} [res] - Optional IPC response callback. Called with:
-   * - `(null)` on success,
-   * - `(null, Error)` on failure,
-   * or `(null, Error('Invalid window type'))` if the window is invalid.
-   *
-   * @throws {Error} Throws an error if the provided window (`win`) is invalid (null, destroyed, or missing webContents).
-   *
-   * @returns {void}
+   * @throws {Error} Throws an error if the provided window (`win`) is invalid or fails to set the proxy.
+   * @returns {Promise<void>}
    */
-  setProxy(win, config, res) {
+  async setProxy(win, config) {
     this.#isBrowserWindow(win);
-    win.webContents.session
-      .setProxy(config)
-      .then((data) => {
-        if (win && win.webContents) {
-          if (typeof res === 'function') res(null);
-          win.webContents.send(this.#AppEvents.SetProxy, { value: config, time: Date.now() });
-        } else if (typeof res === 'function') res(null, new Error('Invalid window type'));
-        return data;
-      })
-      .catch((err) => {
-        if (win && win.webContents) {
-          if (typeof res === 'function') res(null, err);
-          win.webContents.send(this.#AppEvents.SetProxyError, {
-            err: serializeError(err),
-            time: Date.now(),
-          });
-        } else if (typeof res === 'function') res(null, new Error('Invalid window type'));
-        return err;
-      });
+    try {
+      await win.webContents.session.setProxy(config);
+      if (win && win.webContents) {
+        win.webContents.send(this.#AppEvents.SetProxy, { value: config, time: Date.now() });
+      }
+    } catch (err) {
+      if (win && win.webContents) {
+        win.webContents.send(this.#AppEvents.SetProxyError, {
+          // @ts-ignore
+          err: serializeError(err),
+          time: Date.now(),
+        });
+      }
+      throw err;
+    }
   }
 
   /**
@@ -698,14 +623,6 @@ class TinyElectronRoot {
   }
 
   /**
-   * Returns the internal TinyIpcResponder instance.
-   * @returns {TinyIpcResponder}
-   */
-  getIpcResponder() {
-    return this.#ipcResponder;
-  }
-
-  /**
    * Registers a callback function responsible for providing cache data to be sent
    * to renderer processes upon request.
    *
@@ -726,11 +643,12 @@ class TinyElectronRoot {
   setRequestCache(callback) {
     if (this.#requestCache) throw new Error('Cache request callback has already been set.');
     this.#requestCache = callback;
-    this.#ipcResponder.on(this.#AppEvents.ElectronCacheValues, (event, value, res) => {
+    ipcMain.handle(this.#AppEvents.ElectronCacheValues, (event, value) => {
       const win = this.#getWin(event);
       if (win && win.webContents && typeof this.#requestCache === 'function') {
-        res(this.#requestCache(value));
-      } else res(null);
+        return this.#requestCache(value);
+      }
+      return null;
     });
   }
 
@@ -860,7 +778,7 @@ class TinyElectronRoot {
    * If the window is the main one, it clears the internal main reference. If it’s a secondary
    * window, it is removed from the internal map.
    *
-   * @param {string|number} [key] - Optional key to target a secondary window. If omitted, the main window is destroyed.
+   * @param {string|number} [key] - Optional key to target a secondary window.
    * @throws {Error} If no main window exists or no matching window instance is found.
    */
   destroyWindow(key) {
@@ -904,7 +822,7 @@ class TinyElectronRoot {
    * On Windows, it listens to the `double-click` event.
    *
    * @param {string} key - The identifier of the tray instance.
-   * @param {(event: Electron.KeyboardEvent, bounds: Electron.Rectangle) => void} callback - The callback function to invoke when the event occurs.
+   * @param {(event: Electron.KeyboardEvent, bounds: Electron.Rectangle) => void} callback - The callback function to invoke.
    */
   onTrayClick(key, callback) {
     const tray = this.getTray(key);
@@ -1031,7 +949,6 @@ class TinyElectronRoot {
    *
    * @param {Object} [settings={}] - Configuration settings for the application.
    * @param {AppEvents} [settings.eventNames=this.#AppEvents] - Set of event names for internal messaging.
-   * @param {string} [settings.ipcResponseChannel] - Custom ipc response channel name of TinyIpcResponder instance.
    * @param {boolean} [settings.openWithBrowser=true] - Whether to allow fallback opening in the system browser.
    * @param {string} [settings.urlBase=''] - The base URL for loading content if using remote sources.
    * @param {string} [settings.pathBase] - The local path used for loading static files if not using a URL.
@@ -1047,7 +964,6 @@ class TinyElectronRoot {
    */
   constructor({
     eventNames = { ...this.#AppEvents },
-    ipcResponseChannel,
     openWithBrowser = true,
     name = app.getName(),
     urlBase = '',
@@ -1106,7 +1022,6 @@ class TinyElectronRoot {
         'Expected "openWithBrowser" to be a boolean. Provide a valid application openWithBrowser.',
       );
 
-    this.#ipcResponder = new TinyIpcResponder(ipcResponseChannel);
     this.#minimizeOnClose = minimizeOnClose;
     this.#appDataName = appDataName;
     this.#openWithBrowser = openWithBrowser;
@@ -1649,7 +1564,7 @@ class TinyElectronRoot {
    */
   loadPath(win, page, ops) {
     // Validate BrowserWindow
-    this.#isBrowserWindow(win); // presume que já lança erro se não for
+    this.#isBrowserWindow(win);
 
     // Validate `page`
     const pageData = [];

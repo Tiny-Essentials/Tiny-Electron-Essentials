@@ -2,8 +2,6 @@
 
 TinyDb provides a secure and simple bridge between the Electron renderer process and the main process for executing database queries over IPC. It offers common SQL-like methods — `run`, `all`, `get`, and `query` — directly in the renderer via `contextBridge`.
 
-> 🔒 All communications happen securely through the `TinyIpcRequestManager`.
-
 ---
 
 ## 🚀 Features
@@ -30,12 +28,10 @@ const db = new TinyDb(ipcRequestManager, 'databaseId');
 
 | Parameter    | Type                    | Description                                    |
 | ------------ | ----------------------- | ---------------------------------------------- |
-| `ipcRequest` | `TinyIpcRequestManager` | The IPC request manager instance.              |
 | `id`         | `string`                | Unique identifier to namespace the IPC events. |
 
 #### ⚠️ Throws
 
-* `Error` — If `ipcRequest` is not an instance of `TinyIpcRequestManager`.
 * `Error` — If `id` is not a string.
 
 ---
@@ -149,10 +145,8 @@ const result = await window.tinyDb.query('PRAGMA user_version', []);
 ```js
 import { contextBridge } from 'electron';
 import TinyDb from './TinyDb.js';
-import TinyIpcRequestManager from './TinyIpcRequestManager.js';
 
-const ipcRequest = new TinyIpcRequestManager();
-const db = new TinyDb(ipcRequest, 'mainDb');
+const db = new TinyDb('mainDb');
 
 db.exposeInMainWorld('tinyDb');
 ```
@@ -179,7 +173,6 @@ const pragma = await window.tinyDb.query('PRAGMA user_version', []);
 
 * ✔️ Uses namespaced IPC channels like `'mainDb_run'`, `'mainDb_all'`, etc.
 * 🔐 Safe from direct database access in the renderer.
-* 🎯 Requires `TinyIpcRequestManager` to handle IPC communication.
 
 ---
 

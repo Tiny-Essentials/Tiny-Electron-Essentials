@@ -27,10 +27,9 @@ A powerful client API for managing Electron windows with fine-grained control ov
 ## Constructor 🏗️
 
 ```js
-constructor({ ipcReceiverChannel, eventNames } = {})
+constructor({ eventNames } = {})
 ```
 
-* `ipcReceiverChannel` (string, optional): Custom IPC channel name for responses.
 * `eventNames` (object, optional): Custom set of internal event names.
 
 Initializes IPC communication and sets up listeners for various window and app events.
@@ -159,9 +158,6 @@ Async methods that send IPC commands to control window behavior.
 * `getAllChangeCount()`
   Returns total count of changes.
 
-* `getIpcRequest()`
-  Access to the internal IPC request manager.
-
 * `getWindowData(): Promise<WindowDataResult>`
   Requests current window data from the main process.
 
@@ -273,13 +269,6 @@ electronWindow.setTitle('Hello World!');
 
 * `getShowStatus(): boolean`
   Returns whether the application is shown (true) or hidden (false).
-
----
-
-## IPC Request Access 🔌
-
-* `getIpcRequest(): TinyIpcRequestManager`
-  Returns the internal IPC request manager instance for custom requests.
 
 ---
 

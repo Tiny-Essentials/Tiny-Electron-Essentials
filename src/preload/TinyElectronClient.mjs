@@ -2,7 +2,6 @@ import { EventEmitter } from 'events';
 import { ipcRenderer, contextBridge } from 'electron';
 import { AppEvents, RootEvents } from '../global/Events.mjs';
 import { checkEventsList, deserializeError } from '../global/Utils.mjs';
-import TinyIpcRequestManager from './TinyIpcRequestManager.mjs';
 import { getLoadingHtml } from './LoadingHtml.mjs';
 
 /**
@@ -70,10 +69,10 @@ import { getLoadingHtml } from './LoadingHtml.mjs';
  * @property {(event: string | symbol, listener: ListenerCallback) => void} once
  *
  * Opens the Developer Tools (DevTools) for the window.
- * @property {(ops: Electron.OpenDevToolsOptions) => void} openDevTools
+ * @property {(ops: Electron.OpenDevToolsOptions) => Promise<void>} openDevTools
  *
  * Sets the window title for the BrowserWindow.
- * @property {(title: string) => void} setTitle
+ * @property {(title: string) => Promise<void>} setTitle
  *
  * Retrieves the current internal visibility status flag.
  * May differ from actual visibility (`isVisible`) for internal tracking purposes.
@@ -202,7 +201,7 @@ import { getLoadingHtml } from './LoadingHtml.mjs';
  */
 
 /**
- * Manages the state and communication of a single Electron window instance.
+ * Manages the state and communication of a single Electron window instance natively.
  *
  * This class handles window state tracking, including focus, visibility,
  * fullscreen, and maximized states. It also manages cached data, window data,
@@ -457,9 +456,6 @@ class TinyElectronClient {
   rawListeners(eventName) {
     return this.#events.rawListeners(eventName);
   }
-
-  /** @type {TinyIpcRequestManager} */
-  #ipcRequest;
 
   #fullscreen = false;
   #visible = false;
@@ -812,21 +808,13 @@ class TinyElectronClient {
   }
 
   /**
-   * Returns the internal TinyIpcRequestManager instance.
-   * @returns {TinyIpcRequestManager}
-   */
-  getIpcRequest() {
-    return this.#ipcRequest;
-  }
-
-  /**
    * Requests the current window data from the main process.
    * The returned data includes window bounds, state, and other properties.
    *
    * @returns {Promise<WindowDataResult>} A promise that resolves with the current window data.
    */
   getWindowData() {
-    return this.#ipcRequest.send(this.#AppEvents.GetWindowData);
+    return ipcRenderer.invoke(this.#AppEvents.GetWindowData);
   }
 
   /**
@@ -836,7 +824,7 @@ class TinyElectronClient {
    * @returns {Promise<number>} A promise that resolves with the number of seconds since last user activity.
    */
   systemIdleTime() {
-    return this.#ipcRequest.send(this.#AppEvents.SystemIdleTime);
+    return ipcRenderer.invoke(this.#AppEvents.SystemIdleTime);
   }
 
   /**
@@ -847,7 +835,7 @@ class TinyElectronClient {
    * @returns {Promise<"active" | "idle" | "locked" | "unknown">}
    */
   systemIdleState(idleThreshold) {
-    return this.#ipcRequest.send(this.#AppEvents.SystemIdleState, idleThreshold);
+    return ipcRenderer.invoke(this.#AppEvents.SystemIdleState, idleThreshold);
   }
 
   /**
@@ -855,7 +843,7 @@ class TinyElectronClient {
    * @returns {Promise<Record<string, *>>}
    */
   async requestCache() {
-    const result = await this.#ipcRequest.send(this.#AppEvents.ElectronCacheValues);
+    const result = await ipcRenderer.invoke(this.#AppEvents.ElectronCacheValues);
     this.#setCache(result, true);
     return result;
   }
@@ -865,7 +853,7 @@ class TinyElectronClient {
    * @returns {Promise<void>}
    */
   forceFocus() {
-    return this.#ipcRequest.send(this.#AppEvents.ForceFocusWindow);
+    return ipcRenderer.invoke(this.#AppEvents.ForceFocusWindow);
   }
 
   /**
@@ -873,7 +861,7 @@ class TinyElectronClient {
    * @returns {Promise<void>}
    */
   focus() {
-    return this.#ipcRequest.send(this.#AppEvents.FocusWindow);
+    return ipcRenderer.invoke(this.#AppEvents.FocusWindow);
   }
 
   /**
@@ -881,7 +869,7 @@ class TinyElectronClient {
    * @returns {Promise<void>}
    */
   blur() {
-    return this.#ipcRequest.send(this.#AppEvents.BlurWindow);
+    return ipcRenderer.invoke(this.#AppEvents.BlurWindow);
   }
 
   /**
@@ -889,7 +877,7 @@ class TinyElectronClient {
    * @returns {Promise<void>}
    */
   show() {
-    return this.#ipcRequest.send(this.#AppEvents.ShowWindow);
+    return ipcRenderer.invoke(this.#AppEvents.ShowWindow);
   }
 
   /**
@@ -897,7 +885,7 @@ class TinyElectronClient {
    * @returns {Promise<void>}
    */
   hide() {
-    return this.#ipcRequest.send(this.#AppEvents.WindowHide);
+    return ipcRenderer.invoke(this.#AppEvents.WindowHide);
   }
 
   /**
@@ -905,7 +893,7 @@ class TinyElectronClient {
    * @returns {Promise<void>}
    */
   close() {
-    return this.#ipcRequest.send(this.#AppEvents.WindowClose);
+    return ipcRenderer.invoke(this.#AppEvents.WindowClose);
   }
 
   /**
@@ -913,7 +901,7 @@ class TinyElectronClient {
    * @returns {Promise<void>}
    */
   destroy() {
-    return this.#ipcRequest.send(this.#AppEvents.WindowDestroy);
+    return ipcRenderer.invoke(this.#AppEvents.WindowDestroy);
   }
 
   /**
@@ -921,7 +909,7 @@ class TinyElectronClient {
    * @returns {Promise<void>}
    */
   maximize() {
-    return this.#ipcRequest.send(this.#AppEvents.WindowMaximize);
+    return ipcRenderer.invoke(this.#AppEvents.WindowMaximize);
   }
 
   /**
@@ -929,7 +917,7 @@ class TinyElectronClient {
    * @returns {Promise<void>}
    */
   unmaximize() {
-    return this.#ipcRequest.send(this.#AppEvents.WindowUnmaximize);
+    return ipcRenderer.invoke(this.#AppEvents.WindowUnmaximize);
   }
 
   /**
@@ -937,7 +925,7 @@ class TinyElectronClient {
    * @returns {Promise<void>}
    */
   minimize() {
-    return this.#ipcRequest.send(this.#AppEvents.WindowMinimize);
+    return ipcRenderer.invoke(this.#AppEvents.WindowMinimize);
   }
 
   /**
@@ -948,7 +936,7 @@ class TinyElectronClient {
    * @returns {Promise<boolean>} - Edit result.
    */
   setMaximizable(value) {
-    return this.#ipcRequest.send(this.#AppEvents.SetWindowIsMaximizable, value);
+    return ipcRenderer.invoke(this.#AppEvents.SetWindowIsMaximizable, value);
   }
 
   /**
@@ -959,7 +947,7 @@ class TinyElectronClient {
    * @returns {Promise<boolean>} - Edit result.
    */
   setClosable(value) {
-    return this.#ipcRequest.send(this.#AppEvents.SetWindowIsClosable, value);
+    return ipcRenderer.invoke(this.#AppEvents.SetWindowIsClosable, value);
   }
 
   /**
@@ -970,7 +958,7 @@ class TinyElectronClient {
    * @returns {Promise<boolean>} - Edit result.
    */
   setFocusable(value) {
-    return this.#ipcRequest.send(this.#AppEvents.SetWindowIsFocusable, value);
+    return ipcRenderer.invoke(this.#AppEvents.SetWindowIsFocusable, value);
   }
 
   /**
@@ -981,7 +969,7 @@ class TinyElectronClient {
    * @returns {Promise<boolean>} - Edit result.
    */
   setFullScreenable(value) {
-    return this.#ipcRequest.send(this.#AppEvents.SetWindowIsFullScreenable, value);
+    return ipcRenderer.invoke(this.#AppEvents.SetWindowIsFullScreenable, value);
   }
 
   /**
@@ -1009,7 +997,7 @@ class TinyElectronClient {
    * @returns {Promise<boolean>}
    */
   setIsVisible(isVisible) {
-    return this.#ipcRequest.send(this.#AppEvents.ToggleVisible, isVisible);
+    return ipcRenderer.invoke(this.#AppEvents.ToggleVisible, isVisible);
   }
 
   /**
@@ -1020,7 +1008,7 @@ class TinyElectronClient {
    * @returns {Promise<void>}
    */
   setProxy(config) {
-    return this.#ipcRequest.send(this.#AppEvents.SetProxy, config);
+    return ipcRenderer.invoke(this.#AppEvents.SetProxy, config);
   }
 
   /**
@@ -1037,7 +1025,7 @@ class TinyElectronClient {
       throw new TypeError('[changeTrayIcon] The img needs to be a string.');
     if (typeof key !== 'string')
       throw new TypeError('[changeTrayIcon] The key needs to be a string.');
-    return this.#ipcRequest.send(this.#AppEvents.ChangeTrayIcon, { img, key });
+    return ipcRenderer.invoke(this.#AppEvents.ChangeTrayIcon, { img, key });
   }
 
   /**
@@ -1049,7 +1037,7 @@ class TinyElectronClient {
   changeAppIcon(img) {
     if (typeof img !== 'string')
       throw new TypeError('[changeAppIcon] The img needs to be a string.');
-    return this.#ipcRequest.send(this.#AppEvents.ChangeAppIcon, img);
+    return ipcRenderer.invoke(this.#AppEvents.ChangeAppIcon, img);
   }
 
   /**
@@ -1064,23 +1052,21 @@ class TinyElectronClient {
    * @returns {Promise<void>} A promise that resolves when the request is successfully sent.
    */
   openDevTools(ops) {
-    return this.#ipcRequest.send(this.#AppEvents.OpenDevTools, ops);
+    return ipcRenderer.invoke(this.#AppEvents.OpenDevTools, ops);
   }
 
   /**
    * Sets the window title for the BrowserWindow.
    *
-   * This method sends an IPC request to the main process to update the
+   * This method sends an request to the main process to update the
    * window's title dynamically.
    *
    * @param {string} title - The new title to set. Must be a non-empty string.
-   *
    * @throws {TypeError} If the title is not a string.
-   *
    * @returns {Promise<void>} A promise that resolves when the title is set.
    */
   setTitle(title) {
-    return this.#ipcRequest.send(this.#AppEvents.SetTitle, title);
+    return ipcRenderer.invoke(this.#AppEvents.SetTitle, title);
   }
 
   /**
@@ -1298,14 +1284,12 @@ class TinyElectronClient {
 
   /**
    * @param {Object} [settings={}] - Configuration settings for the application.
-   * @param {string} [settings.ipcReceiverChannel] - Custom ipc response channel name of TinyIpcResponder instance.
    * @param {AppEvents} [settings.eventNames=this.#AppEvents] - Set of event names for internal messaging.
    *
    * @throws {Error} If any required string values are missing or invalid.
    */
-  constructor({ ipcReceiverChannel, eventNames = { ...this.#AppEvents } } = {}) {
+  constructor({ eventNames = { ...this.#AppEvents } } = {}) {
     checkEventsList(eventNames, this.#AppEvents);
-    this.#ipcRequest = new TinyIpcRequestManager(ipcReceiverChannel);
 
     // Console warning
     ipcRenderer.on(this.#AppEvents.ConsoleMessage, (_event, { value } = {}) =>
@@ -1313,10 +1297,12 @@ class TinyElectronClient {
     );
 
     /**
-     * @param {string} where
-     * @param {((value: any, useIt: boolean) => void)|null} callback
-     * @param {{ value: any; time: number; }} data
-     * @param {string} [customPing]
+     * Helper to process received standard IPC events dynamically.
+     *
+     * @param {string} where - The event channel name.
+     * @param {((value: any, useIt: boolean) => void)|null} callback - Action to trigger using payload data.
+     * @param {{ value: any; time: number; }} data - The internal data bundle.
+     * @param {string} [customPing] - Optional identifier for preventing out-of-order execution.
      */
     const sendEvent = (where, callback, data, customPing) => {
       const { value, time } = data;
@@ -1439,7 +1425,7 @@ class TinyElectronClient {
       sendEvent(RootEvents.IsFocusable, (value, useIt) => this.#setIsFocusable(value, useIt), arg),
     );
 
-    const getConfig = this.#ipcRequest.send(this.#AppEvents.GetWindowData);
+    const getConfig = ipcRenderer.invoke(this.#AppEvents.GetWindowData);
     const domContentLoaded = new Promise((resolve) => {
       if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', resolve);
       else resolve(null);
@@ -1466,10 +1452,11 @@ class TinyElectronClient {
 
     getConfig.then(
       /** @param {WindowDataResult} data */ (data) => {
+        if (!data) return data;
         if (
           typeof data.bounds === 'object' &&
           typeof data.bounds.x === 'number' &&
-          typeof data.bounds.x === 'number' &&
+          typeof data.bounds.y === 'number' &&
           typeof data.bounds.height === 'number' &&
           typeof data.bounds.width === 'number'
         )

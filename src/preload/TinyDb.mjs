@@ -1,41 +1,91 @@
-import { contextBridge } from 'electron';
-import TinyIpcRequestManager from './TinyIpcRequestManager.mjs';
+import { contextBridge, ipcRenderer } from 'electron';
 
 /**
- * TinyDb provides a secure bridge between the Electron renderer process and the main process
- * to perform database queries over IPC. It exposes simple database-like methods (`run`, `all`,
- * `get`, and `query`) to the renderer process using `contextBridge.exposeInMainWorld`.
+ * Executes an SQL command that modifies data (`INSERT`, `UPDATE`, `DELETE`)
+ * or runs any command without returning rows.
  *
- * This class is designed to work alongside a `TinyIpcRequestManager` instance
- * and requires an identifier (`id`) to namespace IPC events.
+ * @callback SqlRun
+ * @param {string} query - SQL query string.
+ * @param {any[]} params - Query parameters.
+ * @returns {Promise<any>} Result of the query execution.
+ */
+
+/**
+ * Executes a SQL `SELECT` query that returns all matching rows.
+ *
+ * @callback SqlAll
+ * @param {string} query - SQL query string.
+ * @param {any[]} params - Query parameters.
+ * @returns {Promise<any[]>} Array of matching rows.
+ */
+
+/**
+ * Executes a SQL `SELECT` query that returns a single row.
+ *
+ * @callback SqlGet
+ * @param {string} query - SQL query string.
+ * @param {any[]} params - Query parameters.
+ * @returns {Promise<any>} The first row matching the query.
+ */
+
+/**
+ * Executes a generic SQL query. The result depends on the query type.
+ *
+ * @callback SqlQuery
+ * @param {string} query - SQL query string.
+ * @param {any[]} params - Query parameters.
+ * @returns {Promise<any>} Result of the query.
+ */
+
+/**
+ * SqlManager represents the core interface for database interactions.
+ * It groups together the primary methods required to execute various types of SQL commands.
+ * @typedef {{ get: SqlGet; query: SqlQuery; all: SqlAll; run: SqlRun; }} SqlManager
+ */
+
+/**
+ * TinyDb provides a secure bridge between the Electron renderer process and the main process.
+ * It uses native `ipcRenderer.invoke` to perform database operations over IPC.
+ *
+ * This class exposes database-like methods (`run`, `all`, `get`, and `query`)
+ * to the renderer process using `contextBridge.exposeInMainWorld`.
  */
 class TinyDb {
-  #ipcRequest;
   #exposeInMainWorld = '';
   #id;
 
   /**
    * Creates a new TinyDb instance.
    *
-   * @param {TinyIpcRequestManager} ipcRequest - The IPC request manager instance for communication.
    * @param {string} id - A unique identifier to namespace the IPC events.
-   *
-   * @throws {Error} If `ipcRequest` is not an instance of `TinyIpcRequestManager`.
    * @throws {Error} If `id` is not a string.
    */
-  constructor(ipcRequest, id) {
-    if (!(ipcRequest instanceof TinyIpcRequestManager))
-      throw new Error('ipcRequest must be an instance of TinyIpcRequestManager.');
+  constructor(id) {
     if (typeof id !== 'string') throw new Error('id must be a string.');
-    this.#ipcRequest = ipcRequest;
     this.#id = id;
+  }
+
+  /**
+   * Private helper to handle the IPC invocation logic.
+   *
+   * @param {string} action - The database action to perform.
+   * @param {string} query - The SQL query string.
+   * @param {any[]} params - The query parameters.
+   * @returns {Promise<any>} The result from the main process.
+   */
+  #send(action, query, params) {
+    /** @inner {string} channel */
+    const channel = `${this.#id}_${action}`;
+    /** @inner {object} payload */
+    const payload = { query, params };
+
+    return ipcRenderer.invoke(channel, payload);
   }
 
   /**
    * Exposes the TinyDb API to the renderer process via `window[apiName]`.
    *
    * @param {string} [apiName='tinyDb'] - The name under which the API will be exposed in `window`.
-   *
    * @throws {Error} If the API is already exposed.
    * @throws {Error} If `apiName` is not a valid non-empty string.
    */
@@ -46,41 +96,13 @@ class TinyDb {
       throw new Error('apiName must be a non-empty string.');
     this.#exposeInMainWorld = apiName;
     contextBridge.exposeInMainWorld(apiName, {
-      /**
-       * Executes an SQL command that modifies data (`INSERT`, `UPDATE`, `DELETE`)
-       * or runs any command without returning rows.
-       *
-       * @param {string} query - SQL query string.
-       * @param {any[]} params - Query parameters.
-       * @returns {Promise<any>} Result of the query execution.
-       */
+      /** @type {SqlRun} */
       run: (query, params) => this.run(query, params),
-
-      /**
-       * Executes a SQL `SELECT` query that returns all matching rows.
-       *
-       * @param {string} query - SQL query string.
-       * @param {any[]} params - Query parameters.
-       * @returns {Promise<any[]>} Array of matching rows.
-       */
+      /** @type {SqlAll} */
       all: (query, params) => this.all(query, params),
-
-      /**
-       * Executes a SQL `SELECT` query that returns a single row.
-       *
-       * @param {string} query - SQL query string.
-       * @param {any[]} params - Query parameters.
-       * @returns {Promise<any>} The first row matching the query.
-       */
+      /** @type {SqlGet} */
       get: (query, params) => this.get(query, params),
-
-      /**
-       * Executes a generic SQL query. The result depends on the query type.
-       *
-       * @param {string} query - SQL query string.
-       * @param {any[]} params - Query parameters.
-       * @returns {Promise<any>} Result of the query.
-       */
+      /** @type {SqlQuery} */
       query: (query, params) => this.query(query, params),
     });
   }
@@ -91,43 +113,43 @@ class TinyDb {
    *
    * @param {string} query - SQL query string.
    * @param {any[]} params - Query parameters.
-   * @returns {Promise<any>} Result of the query execution.
+   * @returns {Promise<any>}
    */
   run(query, params) {
-    return this.#ipcRequest.send(`${this.#id}_run`, { query, params });
+    return this.#send('run', query, params);
   }
 
   /**
-   * Executes a SQL `SELECT` query that returns all matching rows.
+   * Executes a SQL `SELECT` query for multiple rows.
    *
    * @param {string} query - SQL query string.
    * @param {any[]} params - Query parameters.
    * @returns {Promise<any[]>} Array of matching rows.
    */
   all(query, params) {
-    return this.#ipcRequest.send(`${this.#id}_all`, { query, params });
+    return this.#send('all', query, params);
   }
 
   /**
-   * Executes a SQL `SELECT` query that returns a single row.
+   * Executes a SQL `SELECT` query for a single row.
    *
    * @param {string} query - SQL query string.
    * @param {any[]} params - Query parameters.
    * @returns {Promise<any>} The first row matching the query.
    */
   get(query, params) {
-    return this.#ipcRequest.send(`${this.#id}_get`, { query, params });
+    return this.#send('get', query, params);
   }
 
   /**
-   * Executes a generic SQL query. The result depends on the query type.
+   * Executes a generic SQL query.
    *
    * @param {string} query - SQL query string.
    * @param {any[]} params - Query parameters.
    * @returns {Promise<any>} Result of the query.
    */
   query(query, params) {
-    return this.#ipcRequest.send(`${this.#id}_query`, { query, params });
+    return this.#send('query', query, params);
   }
 }
 

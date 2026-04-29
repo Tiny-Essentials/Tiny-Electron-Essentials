@@ -24,7 +24,6 @@ The modules in this folder are designed to abstract away common Electron operati
 | [`TinyDb`](./TinyDb.md)                                     | 📦 Tiny JSON-based database for simple persistent storage. |
 | [`TinyElectronNotification`](./TinyElectronNotification.md) | 🔔 Wrapper for Electron's notification API with enhancements. |
 | [`TinyElectronRoot`](./TinyElectronRoot.md)                 | 🚀 The main app manager: handles windows, tray, lifecycle, paths, and more. |
-| [`TinyIpcResponder`](./TinyIpcResponder.md)                 | 📡 IPC responder that simplifies main/renderer communication. |
 | [`TinyWindowFile`](./TinyWindowFile.md)                     | 📁 File path resolver and utilities for windows and app assets. |
 | [`TinyWinInstance`](./TinyWinInstance.md)                   | 🪟 Encapsulates a single BrowserWindow instance with extended controls. |
 
@@ -51,7 +50,6 @@ If it's part of the backend logic of the Electron app — it's here. 🍮
 ```plaintext
 TinyElectronRoot ─┬─ TinyWinInstance ──> TinyWindowFile
                    ├─ TinyElectronNotification
-                   ├─ TinyIpcResponder
                    └─ TinyDb
 ````
 
@@ -59,7 +57,6 @@ TinyElectronRoot ─┬─ TinyWinInstance ──> TinyWindowFile
 * **`TinyWinInstance`** handles a single window lifecycle.
 * **`TinyWindowFile`** supports file path resolution for windows.
 * **`TinyElectronNotification`** handles desktop notifications.
-* **`TinyIpcResponder`** manages communication between renderer and main.
 * **`TinyDb`** is a lightweight JSON-based data storage.
 
 ---

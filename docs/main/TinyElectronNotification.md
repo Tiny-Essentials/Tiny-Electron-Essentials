@@ -11,7 +11,6 @@ TinyElectronNotification is an wrapper for handling desktop notifications in **E
 - Manage notifications with full event handling from the main process.
 - Support for icons as **file paths** or **Base64** (converted to temporary files).
 - Persistent notifications managed by unique `tags`.
-- Secure communication via `TinyIpcResponder`.
 
 ---
 
@@ -30,7 +29,6 @@ TinyElectronNotification is an wrapper for handling desktop notifications in **E
 
 ```js
 new TinyElectronNotification({
-  ipcResponder,
   folderPath,
   eventNames,
 })
@@ -38,7 +36,6 @@ new TinyElectronNotification({
 
 | Param          | Type                 | Description                                        |
 | -------------- | -------------------- | -------------------------------------------------- |
-| `ipcResponder` | `TinyIpcResponder`   | The IPC responder for communication. (Required)    |
 | `folderPath`   | `string`             | Folder where icons (especially base64) are stored. |
 | `eventNames`   | `NotificationEvents` | (Optional) Override default event names.           |
 
@@ -111,11 +108,8 @@ Creates and manages a notification instance internally.
 
 ```js
 import TinyElectronNotification from './TinyElectronNotification.mjs';
-import TinyIpcResponder from './TinyIpcResponder.mjs';
 
-const ipcResponder = new TinyIpcResponder('noti');
 const notification = new TinyElectronNotification({
-  ipcResponder,
   folderPath: './tempIcons',
 });
 ```

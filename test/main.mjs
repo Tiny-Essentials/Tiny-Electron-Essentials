@@ -1,7 +1,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { app, Tray } from 'electron';
+import { app, Tray, ipcMain } from 'electron';
 import { TinyDb, TinyElectronNotification, TinyElectronRoot } from '../main/index.mjs';
 import { RootEvents } from '../global/Events.mjs';
 
@@ -19,8 +19,6 @@ const root = new TinyElectronRoot({
   title: 'Tiny Electron Essentials',
 });
 
-const responder = root.getIpcResponder();
-
 // Fix windows OS
 root.installWinProtection();
 
@@ -32,7 +30,6 @@ const appDataPrivate = root.getAppDataSubdir('tiny-test');
 const initFile = path.join(appDataPrivate, 'init.json');
 
 const notifications = new TinyElectronNotification({
-  ipcResponder: responder,
   folderPath: root.initAppDataSubdir('notifications', 'temp'),
 });
 
@@ -104,12 +101,12 @@ root.on(RootEvents.CreateFirstWindow, () => {
 
   console.log(`Instance index: ${instance.getIndex()}`);
 
-  responder.on('get-user-data', async (_event, payload, respond) => {
+  ipcMain.handle('get-user-data', async (_event, payload) => {
     try {
       const user = { result: 'pudding', time: Date.now(), ...payload };
-      respond(user);
+      return user;
     } catch (err) {
-      respond(null, err.message);
+      throw err;
     }
   });
 
@@ -121,7 +118,7 @@ root.on(RootEvents.CreateFirstWindow, () => {
 root.init();
 
 // Tiny Db
-const tinyDb = new TinyDb(responder, 'db');
+const tinyDb = new TinyDb('db');
 
 // Mock database functions
 tinyDb.setGet(async (query, params) => {

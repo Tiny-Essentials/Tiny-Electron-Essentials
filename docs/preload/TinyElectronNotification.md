@@ -28,19 +28,16 @@ import TinyElectronNotification from './TinyElectronNotification.js';
 
 ```js
 const notificationManager = new TinyElectronNotification({
-  ipcRequest, // TinyIpcRequestManager instance (required)
   eventNames  // Optional: override event names
 });
 ```
 
 | Parameter    | Type                    | Description                                      |
 | ------------ | ----------------------- | ------------------------------------------------ |
-| `ipcRequest` | `TinyIpcRequestManager` | The IPC request manager instance (**required**)  |
 | `eventNames` | `NotificationEvents`    | Optional custom event names (default internally) |
 
 ### ⚠️ Throws
 
-* `Error` — If `ipcRequest` is not an instance of `TinyIpcRequestManager`.
 * `Error` — If `eventNames` doesn't match the expected structure.
 
 ---
@@ -134,10 +131,8 @@ Each notification object supports:
 
 ```js
 import TinyElectronNotification from './TinyElectronNotification.js';
-import TinyIpcRequestManager from './TinyIpcRequestManager.js';
 
-const ipcRequest = new TinyIpcRequestManager();
-const notificationManager = new TinyElectronNotification({ ipcRequest });
+const notificationManager = new TinyElectronNotification();
 
 notificationManager.installWinScript('newElectronNotification');
 ```

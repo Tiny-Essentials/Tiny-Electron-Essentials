@@ -131,7 +131,6 @@ Initializes core app configuration and setups essential app behaviors.
 
 **Settings object (optional):**  
 - `eventNames` — Custom event names.  
-- `ipcResponseChannel` — IPC response channel name.  
 - `openWithBrowser` (boolean) — Allow fallback open in system browser (default: true).  
 - `urlBase` (string) — Base URL for remote content loading.  
 - `pathBase` (string) — Base local path for static files.  
@@ -399,16 +398,6 @@ Returns the internal TinyWindowFile instance.
 
 **Returns:**  
 - TinyWindowFile instance.
-
----
-
-## IPC Utilities 📡🛠️
-
-### `getIpcResponder()`
-Returns the IPC responder object used for handling inter-process communication.
-
-**Returns:**  
-- IPC responder instance.
 
 ---
 

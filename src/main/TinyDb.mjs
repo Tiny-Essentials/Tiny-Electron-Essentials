@@ -1,66 +1,62 @@
-import { BrowserWindow } from 'electron';
-import TinyIpcResponder from './TinyIpcResponder.mjs';
+import { BrowserWindow, ipcMain } from 'electron';
 
 /**
  * A function that executes an SQL query against the database.
  * The query can be for fetching data (`SELECT`), modifying data (`UPDATE`, `INSERT`),
  * or any other valid SQL command depending on the method used.
  *
- * @typedef {(query: string, params: any[]) => any} QueryRequest
+ * @callback QueryRequest
+ * @param {string} query - The SQL query string to execute.
+ * @param {any[]} params - The parameters to bind to the query.
+ * @returns {Promise<any>} The result of the database operation.
  */
 
 /**
  * TinyDb is an IPC-based database handler designed for Electron applications.
- * It connects the renderer process to a backend database using IPC events.
+ * It connects the renderer process to a backend database using native `ipcMain.handle`.
  *
  * This class listens to specific IPC events (`run`, `all`, `get`, `query`) identified by a unique ID,
- * allowing the renderer process to execute database operations securely and asynchronously.
+ * allowing the renderer process to execute database operations securely via `ipcRenderer.invoke`.
  *
  * The class itself does not handle the database logic directly; instead, it acts as an abstract interface.
  * You must extend this class and override its internal methods (`#run`, `#all`, `#get`, `#query`)
  * to provide the actual database functionality.
  */
 class TinyDb {
-  #ipcResponder;
   #id;
 
   /**
    * Executes a SQL `SELECT` query that returns a single row.
-   *
    * @type {QueryRequest}
    */
-  #get = (query = '', params = []) => {
+  #get = async (query = '', params = []) => {
     console.warn('[TinyDb Debug] Called "get" with:', { query, params });
     throw new Error('TinyDb: "get" function is not defined.');
   };
 
   /**
-   * Executes an SQL command that modifies data (`INSERT`, `UPDATE`, `DELETE`)
-   * or runs any command without returning rows.
-   *
+   * Executes an SQL command that modifies data (`INSERT`, `UPDATE`, `DELETE`).
    * @type {QueryRequest}
    */
-  #run = (query = '', params = []) => {
+  #run = async (query = '', params = []) => {
     console.warn('[TinyDb Debug] Called "run" with:', { query, params });
     throw new Error('TinyDb: "run" function is not defined.');
   };
 
   /**
    * Executes a SQL `SELECT` query that returns all matching rows.
-   *
    * @type {QueryRequest}
    */
-  #all = (query = '', params = []) => {
+  #all = async (query = '', params = []) => {
     console.warn('[TinyDb Debug] Called "all" with:', { query, params });
     throw new Error('TinyDb: "all" function is not defined.');
   };
 
   /**
-   * Executes a generic SQL query. The result depends on the query type.
-   *
+   * Executes a generic SQL query.
    * @type {QueryRequest}
    */
-  #query = (query = '', params = []) => {
+  #query = async (query = '', params = []) => {
     console.warn('[TinyDb Debug] Called "query" with:', { query, params });
     throw new Error('TinyDb: "query" function is not defined.');
   };
@@ -112,66 +108,49 @@ class TinyDb {
   /**
    * Retrieves the `BrowserWindow` instance that originated the IPC event.
    *
-   * @param {Electron.IpcMainEvent} event - The IPC event from which to extract the window.
-   * @returns {BrowserWindow|null} The associated `BrowserWindow` or `null` if not found.
+   * @param {Electron.IpcMainInvokeEvent} event - The IPC event.
+   * @returns {BrowserWindow|null} The associated `BrowserWindow` or `null`.
    */
   #getWin(event) {
     const webContents = event.sender;
     if (!event.senderFrame) return null;
-    const win = BrowserWindow.fromWebContents(webContents);
-    if (win) return win;
-    return null;
+    return BrowserWindow.fromWebContents(webContents);
   }
 
   /**
-   * Creates a new TinyDb instance linked to a specific IPC responder and identifier.
-   * Sets up listeners to handle database-related IPC calls (`run`, `all`, `get`, `query`).
+   * Internal helper to register IPC handlers and avoid repetition.
    *
-   * @param {TinyIpcResponder} ipcResponder - The IPC responder instance used for communication.
-   * @param {string} id - A unique identifier to namespace the IPC events.
+   * @param {string} action - The action name (e.g., 'run', 'all').
+   * @param {QueryRequest} handler - The internal method to call.
    */
-  constructor(ipcResponder, id) {
-    if (!(ipcResponder instanceof TinyIpcResponder))
-      throw new Error('Invalid ipcResponder instance.');
+  #registerHandler(action, handler) {
+    /** @inner {string} channel */
+    const channel = `${this.#id}_${action}`;
+
+    ipcMain.handle(channel, async (event, args) => {
+      /** @inner {BrowserWindow|null} win */
+      const win = this.#getWin(event);
+      if (!win) return null;
+
+      const { query, params } = args || {};
+      return await handler(query, params);
+    });
+  }
+
+  /**
+   * Creates a new TinyDb instance and sets up native Electron IPC handlers.
+   *
+   * @param {string} id - A unique identifier to namespace the IPC channels.
+   */
+  constructor(id) {
     if (typeof id !== 'string') throw new Error('id must be a string.');
-    this.#ipcResponder = ipcResponder;
     this.#id = id;
 
-    this.#ipcResponder.on(`${this.#id}_run`, async (event, value, res) => {
-      const win = this.#getWin(event);
-      if (win) {
-        const { query, params } = value;
-        const result = await this.#run(query, params);
-        res(result);
-      } else res(null);
-    });
-
-    this.#ipcResponder.on(`${this.#id}_all`, async (event, value, res) => {
-      const win = this.#getWin(event);
-      if (win) {
-        const { query, params } = value;
-        const result = await this.#all(query, params);
-        res(result);
-      } else res(null);
-    });
-
-    this.#ipcResponder.on(`${this.#id}_get`, async (event, value, res) => {
-      const win = this.#getWin(event);
-      if (win) {
-        const { query, params } = value;
-        const result = await this.#get(query, params);
-        res(result);
-      } else res(null);
-    });
-
-    this.#ipcResponder.on(`${this.#id}_query`, async (event, value, res) => {
-      const win = this.#getWin(event);
-      if (win) {
-        const { query, params } = value;
-        const result = await this.#query(query, params);
-        res(result);
-      } else res(null);
-    });
+    // Register all database handlers using the template method
+    this.#registerHandler('run', (q, p) => this.#run(q, p));
+    this.#registerHandler('all', (q, p) => this.#all(q, p));
+    this.#registerHandler('get', (q, p) => this.#get(q, p));
+    this.#registerHandler('query', (q, p) => this.#query(q, p));
   }
 }
 
